@@ -1,10 +1,12 @@
 import os
-
+from operator import itemgetter
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnablePassthrough
 from langchain_ollama import OllamaEmbeddings, ChatOllama
 from langchain_pinecone import PineconeVectorStore
+from langchain_core.output_parsers import StrOutputParser
 
 load_dotenv()
 
@@ -44,13 +46,44 @@ def retrieval_chain_without_lcel(query: str):
 
     return response.content
 
+def retrieval_chain_with_lcel():
+    '''
+    Create a retrieval chain using  LCEL (Langchain Expression Language).
+    Returns a chain that can be invoked with {"question": "..."}
+    '''
+    retrieval_chain = (
+        RunnablePassthrough.assign(
+            context = itemgetter("question") | retriever | format_docs
+        )
+        | prompt_template
+        | llm
+        | StrOutputParser()
+    )
+
+    return retrieval_chain
+
 if __name__ == "__main__":
     print("Retrieving")
 
     query = "What is pinecone in machine learning?"
 
+    # ========================================================
+    # Option 1: Retrieval without LCEL
+    # ========================================================
+    print("\nRetrieval without LCEL")
     results_without_lcel = retrieval_chain_without_lcel(query)
     print("\nAnswer:")
     print(results_without_lcel)
+
+    #  ========================================================
+    # Otion 2: Retrieval with LCEL
+    # ========================================================
+
+    print("\nRetrieval with LCEL")
+    chain_with_lcel =  retrieval_chain_with_lcel()
+    results_with_lcel = chain_with_lcel.invoke({"question": query})
+    print("\nAnswer:")
+    print(results_with_lcel)
+
 
 
